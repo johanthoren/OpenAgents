@@ -287,3 +287,13 @@ opencode --agent codebase-agent
 ```
 
 The agent will guide you through the entire development workflow with a plan-first, approval-based approach.
+
+---
+## Support This Work
+
+If this helped you out and you're feeling generous, consider funding my coffee habit ☕
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/darrenhinde)
+
+Totally optional, but appreciated.
+
