@@ -22,20 +22,22 @@ OpenAgent is the primary universal agent in OpenCode that handles everything fro
 
 ## What is OpenAgent?
 
-OpenAgent is your **universal assistant** that:
+OpenAgent is your **universal coordinator** that:
 
 - ✅ **Answers questions** - Get explanations, comparisons, and guidance
-- ✅ **Executes tasks** - Create files, update code, run commands
-- ✅ **Coordinates workflows** - Handles most tasks directly, delegates to specialists when needed
+- ✅ **Executes general tasks** - Create files, documentation, simple updates
+- ✅ **Coordinates workflows** - Handles most general tasks directly, delegates to specialists when needed
 - ✅ **Preserves context** - Remembers information across multiple steps
 - ✅ **Keeps you in control** - Always asks for approval before taking action
 
-Think of OpenAgent as a **smart project manager** who:
+Think of OpenAgent as a **smart project coordinator** who:
 - Understands what you need
 - Plans how to do it
 - Asks for your approval
 - Executes the plan (directly or via delegation)
 - Confirms everything is done right
+
+**Note:** For complex multi-file coding work, architecture analysis, or deep refactoring, use **opencoder** instead. OpenAgent is optimized for general tasks and coordination, while opencoder specializes in development work.
 
 ---
 
@@ -64,17 +66,19 @@ graph LR
 **For Questions**: You ask → You get an answer
 **For Tasks**: You ask → See plan → Approve → Watch it happen → Confirm done
 
-### Universal Agent Philosophy
+### Universal Coordinator Philosophy
 
-OpenAgent is a **universal agent** - it handles most tasks directly:
+OpenAgent is a **universal coordinator** - it handles general tasks directly:
 
-**Capabilities**: Write code, docs, tests, reviews, analysis, debugging, research, bash operations, file operations
+**Capabilities**: Answer questions, create documentation, simple code updates, workflow coordination, task planning, general research, file operations
 
-**Default**: Execute directly, fetch context files as needed (lazy), keep it simple, don't over-delegate
+**Default**: Execute directly for general tasks, fetch context files as needed (lazy), keep it simple, don't over-delegate
 
-**Delegate only when**: 4+ files, specialized expertise needed, thorough multi-component review, complex dependencies, or user requests breakdown
+**Delegate to opencoder when**: Complex multi-file coding, architecture analysis, deep refactoring, pattern implementation
 
-This means OpenAgent is your go-to agent for almost everything. It only calls in specialists when truly necessary.
+**Delegate to specialists when**: Testing needed (@tester), review needed (@reviewer), complex task breakdown (@task-manager), comprehensive documentation (@documentation)
+
+This means OpenAgent is your go-to coordinator for general tasks and questions. For deep coding work, use **opencoder**.
 
 ---
 
@@ -1175,7 +1179,7 @@ OpenAgent is your **intelligent universal agent** that:
 ✅ **Preserves context** - Remembers information across multiple steps
 ✅ **Executes directly** - Handles most tasks itself, delegates only when needed
 ✅ **Keeps you in control** - Always confirms before cleanup (Critical Rule)
-✅ **Handles complexity** - Capable of code, docs, tests, reviews, analysis, debugging
+✅ **Handles general tasks** - Questions, docs, coordination, simple updates (delegates complex coding to opencoder)
 ✅ **Reports before fixing** - Never auto-fixes issues without approval (Critical Rule)
 
 **Key Takeaways**:

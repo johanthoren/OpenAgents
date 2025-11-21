@@ -304,7 +304,7 @@ Components:
 **Code-focused development tools**
 
 Components:
-- Development agents: openagent, codebase-agent, task-manager
+- Development agents: openagent, opencoder, task-manager
 - Code subagents: reviewer, tester, coder-agent, build-agent
 - Development commands: test, commit, context
 - Development tools and contexts

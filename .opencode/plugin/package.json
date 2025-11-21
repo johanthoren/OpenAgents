@@ -1,16 +1,13 @@
 {
-  "type": "module",
-  "name": "opencode-telegram-plugin",
+  "name": "opencode-plugins",
   "version": "1.0.0",
-  "description": "Telegram notifications for OpenCode sessions",
-  "main": "telegram-notify.ts",
-  "scripts": {
-    "start": "bun telegram-bot.ts",
-    "build": "bun build telegram-bot.ts --outdir dist"
+  "type": "module",
+  "dependencies": {
+    "@opencode-ai/plugin": "latest",
+    "@opencode-ai/sdk": "latest"
   },
   "devDependencies": {
-    "@types/node": "^24.2.1",
-    "@opencode-ai/plugin": "^0.5.1",
-    "bun-types": "latest"
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
   }
 }

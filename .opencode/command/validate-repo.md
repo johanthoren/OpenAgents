@@ -252,7 +252,7 @@ Generated: 2025-11-19 14:30:00
    - Action: Create file or remove from registry
 
 2. **Broken Dependency**
-   - Component: `agent:codebase-agent`
+   - Component: `agent:opencoder`
    - Dependency: `subagent:pattern-matcher`
    - Issue: Dependency not found in registry
    - Action: Add missing subagent or fix dependency reference
@@ -296,7 +296,7 @@ Generated: 2025-11-19 14:30:00
 
 ### High Priority (Errors)
 1. Create missing file: `.opencode/context/core/advanced-patterns.md`
-2. Fix broken dependency in `codebase-agent`
+2. Fix broken dependency in `opencoder`
 
 ### Medium Priority (Warnings)
 1. Remove orphaned file or add to registry

@@ -11,15 +11,16 @@
   "components": {
     "agents": [
       {
-        "id": "codebase-agent",
-        "name": "Codebase Agent",
+        "id": "opencoder",
+        "name": "OpenCoder",
         "type": "agent",
-        "path": ".opencode/agent/codebase-agent.md",
-        "description": "Analyzes codebase patterns and architecture",
+        "path": ".opencode/agent/opencoder.md",
+        "description": "Specialized development agent for complex coding, architecture, and multi-file refactoring",
         "tags": [
-          "analysis",
+          "development",
           "architecture",
-          "patterns"
+          "coding",
+          "refactoring"
         ],
         "dependencies": [
           "subagent:task-manager",
@@ -674,7 +675,7 @@
       "badge": "RECOMMENDED",
       "components": [
         "agent:openagent",
-        "agent:codebase-agent",
+        "agent:opencoder",
         "subagent:task-manager",
         "subagent:documentation",
         "subagent:coder-agent",
@@ -731,7 +732,7 @@
       "description": "Everything included - all agents, subagents, tools, and plugins for maximum functionality.",
       "components": [
         "agent:openagent",
-        "agent:codebase-agent",
+        "agent:opencoder",
         "subagent:task-manager",
         "subagent:documentation",
         "subagent:coder-agent",
@@ -773,7 +774,7 @@
       "description": "Full installation plus System Builder for creating custom AI architectures. For power users and contributors.",
       "components": [
         "agent:openagent",
-        "agent:codebase-agent",
+        "agent:opencoder",
         "agent:system-builder",
         "subagent:task-manager",
         "subagent:documentation",

@@ -63,7 +63,7 @@ This blueprint explains the architecture patterns behind the OpenCode agent syst
 **When you see commands like `/workflow`, `/plan-task`, `/create-frontend-component`:**
 - These are pattern examples showing how you COULD structure commands
 - Most aren't implemented in the repository
-- The existing `openagent` and `codebase-agent` already handle these workflows
+- The existing `openagent` and `opencoder` already handle these workflows
 - Create them only if you have specific repeated patterns
 
 **When you see extensive context hierarchies:**
@@ -176,19 +176,32 @@ OpenCode processes `@` references only in command templates, NOT recursively in 
 **What they do:** AI workers with specific capabilities and predictable behavior
 
 **Main agents in this repo:**
-- `openagent` - Universal agent for questions and tasks (recommended default)
-- `codebase-agent` - Specialized development partner
-- `task-manager` - Breaks down complex features
-- `workflow-orchestrator` - Routes requests
-- `image-specialist` - Image generation
+- `openagent` - Universal coordinator for general tasks, questions, and workflows (recommended default)
+- `opencoder` - Specialized development agent for complex coding and architecture
+- `system-builder` - Meta-level generator for creating custom AI architectures
 
 **Subagents (specialized helpers):**
-- `reviewer` - Code review and security
-- `tester` - Test creation
+
+Core Coordination:
+- `task-manager` - Task breakdown and planning
+- `documentation` - Documentation authoring
+
+Code Specialists:
 - `coder-agent` - Quick implementations
-- `documentation` - Docs generation
-- `build-agent` - Type checking
+- `reviewer` - Code review and security
+- `tester` - Test creation and validation
+- `build-agent` - Type checking and validation
 - `codebase-pattern-analyst` - Pattern discovery
+
+Utilities:
+- `image-specialist` - Image generation (Gemini AI)
+
+System Builder (Meta-Level):
+- `domain-analyzer` - Domain analysis
+- `agent-generator` - Agent generation
+- `context-organizer` - Context organization
+- `workflow-designer` - Workflow design
+- `command-creator` - Command creation
 
 **Agent structure:**
 - Frontmatter with metadata (description, mode, tools, permissions)
@@ -339,7 +352,7 @@ Create custom agents when:
 - You have unique quality requirements
 
 Don't create custom agents when:
-- `codebase-agent` already handles it
+- `openagent` or `opencoder` already handles it
 - It's a one-time task
 - You're just starting out
 
@@ -452,10 +465,9 @@ The system improves naturally as you:
 ```
 .opencode/
 ├── agent/              # AI agents
-│   ├── codebase-agent.md
-│   ├── task-manager.md
-│   ├── workflow-orchestrator.md
-│   ├── image-specialist.md
+│   ├── openagent.md
+│   ├── opencoder.md
+│   ├── system-builder.md
 │   └── subagents/      # Specialized helpers
 │       ├── reviewer.md
 │       ├── tester.md
@@ -498,6 +510,6 @@ The system improves naturally as you:
 
 _Think of this system like a professional development team: each member has a specific role, they communicate clearly, they track their work systematically, and they validate quality at every step._
 
-_The `codebase-agent` is your senior developer who can handle most tasks. Add specialists only when needed._
+_The `openagent` is your universal coordinator and `opencoder` is your senior developer. Add specialists only when needed._
 
 _When you need to build custom agents, use `/prompt-enchancer` to create well-structured, complex agents with proper workflows._

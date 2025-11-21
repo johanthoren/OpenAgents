@@ -47,7 +47,7 @@ description: "Interactive system builder that creates complete context-aware AI 
       
       <identify_capabilities>
         Known agents and their capabilities:
-        - codebase-agent: Code analysis, file operations
+        - opencoder: Code analysis, file operations
         - task-manager: Task tracking, project management
         - workflow-orchestrator: Workflow coordination
         - image-specialist: Image generation/editing
@@ -280,7 +280,7 @@ description: "Interactive system builder that creates complete context-aware AI 
     <existing_agent_matching>
       <for_development>
         Relevant existing agents:
-        - codebase-agent: Code analysis and file operations
+        - opencoder: Code analysis and file operations
         - build-agent: Build validation and type checking
         - tester: Test authoring and TDD
         - reviewer: Code review and quality assurance

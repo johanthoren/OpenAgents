@@ -1,117 +1,163 @@
-# OpenCode Telegram Plugin
+# Agent Validator Plugin
 
-Simple Telegram notifications for OpenCode sessions.
-
-## Files
-
-- **`telegram-notify.ts`** - OpenCode plugin for session events
-- **`notify.ts`** - Simple system notification plugin (uses `say`)
-- **`telegram-bot.ts`** - Telegram bot implementation
-- **`package.json`** - Dependencies and scripts
-- **`tsconfig.json`** - TypeScript configuration
+Validates that OpenAgent follows its defined prompt rules and execution patterns.
 
 ## Features
 
-- 🕐 Session idle detection and notifications
-- 📱 Telegram messages for session events
-- 📝 Last message capture and forwarding
-- 🚀 Session start/end tracking
-- ✅ Task completion notifications
-- ❌ Error notifications
-- 🛡️ Automatic .env file loading
-- 💬 Commands: `/send-last`, `/send-to-phone`
+- ✅ Tracks tool usage in real-time
+- ✅ Validates approval gate enforcement
+- ✅ Checks lazy context loading
+- ✅ Analyzes delegation decisions (4+ file rule)
+- ✅ Detects critical rule violations (auto-fix attempts)
 
-## Usage
+## Available Tools
 
-### As OpenCode Plugin
-```javascript
-// The plugin automatically responds to session events
-import { TelegramNotify } from "./telegram-notify.js"
-```
-
-**Commands you can use in OpenCode:**
-- `/send-last` - Send the last message to Telegram
-- `/send-to-phone` - Send the last message to your phone
-- `/last` - Same as `/send-last`
-- `/phone` - Same as `/send-to-phone`
-
-### Standalone Bot
-```bash
-# Run the bot directly
-bun telegram-bot.ts
-
-# Test the plugin
-bun telegram-notify.ts
-```
-
-### Setup
-
-1. **Create a Telegram Bot**
-   - Message @BotFather on Telegram
-   - Create a new bot with `/newbot`
-   - Save the bot token
-
-2. **Get Your Chat ID**
-   - Start a chat with your bot
-   - Send a message to the bot
-   - Visit: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
-   - Find your `chat_id` in the response
-
-3. **Configure Environment Variables**
-   ```bash
-   export TELEGRAM_BOT_TOKEN="your_bot_token_here"
-   export TELEGRAM_CHAT_ID="your_chat_id_here"
-   ```
-
-4. **Or Update Configuration**
-   Edit `.opencode/plugin/telegram-config.json`:
-   ```json
-   {
-     "telegramIdle": {
-       "enabled": true,
-       "botToken": "your_bot_token_here",
-       "chatId": "your_chat_id_here"
-     }
-   }
-   ```
-
-### Usage
-
-The plugin automatically initializes when OpenCode starts. It will:
-
-- Monitor session activity
-- Send idle notifications after 5 minutes of inactivity
-- Send resume notifications when activity resumes
-- Clean up resources on session end
-
-### Customization
-
-You can customize the plugin behavior by modifying the configuration:
-
-- `idleTimeout`: Time in milliseconds before considering session idle
-- `checkInterval`: How often to check for idle state
-- `messages`: Customize notification messages
-
-### Integration with OpenCode
-
-To integrate this plugin with OpenCode's event system, you would need to:
-
-1. Hook into OpenCode's activity tracking events
-2. Call `handleActivity()` when user interacts with OpenCode
-3. Call `init()` when OpenCode session starts
-4. Call `cleanup()` when OpenCode session ends
-
-### Testing
-
-Test the plugin independently:
+### `validate_session`
+Validate the current agent session against defined rules.
 
 ```bash
-node .opencode/plugin/telegram-idle.js
+validate_session
 ```
 
-### Troubleshooting
+**Options:**
+- `include_details` (boolean, optional) - Include detailed evidence for each check
 
-- **"Bot token not configured"**: Set `TELEGRAM_BOT_TOKEN` environment variable
-- **"Chat ID not configured"**: Set `TELEGRAM_CHAT_ID` environment variable
-- **"Failed to send message"**: Check bot token and chat ID are correct
-- **No notifications**: Ensure bot is started and chat is active
+**Returns:** Validation report with compliance score
+
+---
+
+### `check_approval_gates`
+Check if approval gates were properly enforced before execution operations.
+
+```bash
+check_approval_gates
+```
+
+**Returns:** Approval gate compliance status
+
+---
+
+### `export_validation_report`
+Export a comprehensive validation report to a markdown file.
+
+```bash
+export_validation_report
+```
+
+**Options:**
+- `output_path` (string, optional) - Path to save the report (defaults to `.tmp/validation-{sessionID}.md`)
+
+**Returns:** Path to exported report + summary
+
+---
+
+### `analyze_delegation`
+Analyze whether delegation decisions followed the 4+ file rule.
+
+```bash
+analyze_delegation
+```
+
+**Returns:** Delegation analysis with file count statistics
+
+---
+
+## Validation Rules
+
+The plugin checks for:
+
+1. **approval_gate_enforcement** - Did agent request approval before bash/write/edit/task?
+2. **stop_on_failure** - Did agent stop on errors or try to auto-fix?
+3. **lazy_context_loading** - Did agent only load context files when needed?
+4. **delegation_appropriateness** - Did agent delegate when 4+ files involved?
+5. **tool_usage** - Track all tool calls for analysis
+
+## Usage Examples
+
+### Basic Validation
+```
+You: "Create a new API endpoint"
+[Agent works on task]
+You: "validate_session"
+```
+
+### Check Approval Compliance
+```
+You: "Run the tests"
+Agent: "Approval needed before proceeding."
+You: "Approved. Also check_approval_gates"
+```
+
+### Export Report
+```
+You: "We just finished refactoring. Export validation report"
+Agent: [Exports to .tmp/validation-{id}.md]
+```
+
+## Installation
+
+The plugin auto-loads from `.opencode/plugins/` when OpenCode starts.
+
+**Install dependencies:**
+```bash
+cd .opencode/plugins
+npm install
+# or
+bun install
+```
+
+## How It Works
+
+1. **Event Tracking** - Hooks into OpenCode SDK events:
+   - `session.message.created`
+   - `tool.execute.before`
+   - `tool.execute.after`
+
+2. **Behavior Analysis** - Analyzes messages for:
+   - Tool invocations
+   - Approval language
+   - Context file reads
+   - Delegation patterns
+
+3. **Validation** - Compares actual behavior against OpenAgent rules
+
+4. **Reporting** - Generates compliance reports with scores and evidence
+
+## Compliance Scoring
+
+- **100%** - Perfect compliance
+- **90-99%** - Excellent (minor warnings)
+- **80-89%** - Good (some warnings)
+- **70-79%** - Fair (multiple warnings)
+- **<70%** - Needs improvement (errors or many warnings)
+
+## Troubleshooting
+
+### "No execution operations tracked"
+- Plugin just loaded, no prior tracking
+- Run a task first, then validate
+
+### "Error fetching session"
+- Check OpenCode SDK connection
+- Verify session ID is valid
+
+### False positives on approval gates
+- Agent may use different approval phrasing
+- Check `approvalKeywords` in plugin code
+- Add custom patterns if needed
+
+## Customization
+
+Edit `agent-validator.ts` to:
+- Add custom validation rules
+- Modify approval detection patterns
+- Adjust delegation thresholds
+- Change severity levels
+
+## Next Steps
+
+1. Test with simple sessions
+2. Identify false positives/negatives
+3. Refine validation logic
+4. Add project-specific rules
+5. Integrate into OpenAgent workflow

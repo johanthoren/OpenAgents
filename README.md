@@ -184,14 +184,22 @@ opencode --agent openagent
 ```
 User Request
     ↓
-openagent (universal coordinator)
+┌───────────────────────────────────────┐
+│  Main Agents (User-Facing)           │
+├───────────────────────────────────────┤
+│  openagent     │ General tasks        │
+│  opencoder     │ Complex coding       │
+│  system-builder│ AI system generation │
+└───────────────────────────────────────┘
     ↓
-    ├─→ @task-manager (breaks down complex features)
-    ├─→ @tester (writes and runs tests)
-    ├─→ @reviewer (security and code review)
-    ├─→ @documentation (generates docs)
-    ├─→ @coder-agent (implementation tasks)
-    └─→ @build-agent (type checking and validation)
+┌───────────────────────────────────────┐
+│  Specialized Subagents                │
+├───────────────────────────────────────┤
+│  Core:         task-manager, docs     │
+│  Code:         coder, tester, reviewer│
+│  Utils:        image-specialist       │
+│  Meta:         domain-analyzer, etc.  │
+└───────────────────────────────────────┘
 ```
 
 **The workflow:**
@@ -209,19 +217,32 @@ openagent (universal coordinator)
 ## What's Included
 
 ### 🤖 Main Agents
-- **openagent** - Universal agent for questions and tasks (recommended default)
-- **codebase-agent** - Specialized development agent for code-focused workflows
-- **task-manager** - Breaks complex features into manageable subtasks
-- **workflow-orchestrator** - Routes requests to appropriate workflows
-- **image-specialist** - Generates images with Gemini AI
+- **openagent** - Universal coordinator for general tasks, questions, and workflows (recommended default)
+- **opencoder** - Specialized development agent for complex coding, architecture, and refactoring
+- **system-builder** - Meta-level generator for creating custom AI architectures
 
 ### 🔧 Specialized Subagents (Auto-delegated)
+
+**Core Coordination:**
+- **task-manager** - Task breakdown and planning
+- **documentation** - Documentation authoring
+
+**Code Specialists:**
+- **coder-agent** - Quick implementation tasks
 - **reviewer** - Code review and security analysis
 - **tester** - Test creation and validation
-- **coder-agent** - Quick implementation tasks
-- **documentation** - Documentation generation
 - **build-agent** - Build and type checking
 - **codebase-pattern-analyst** - Pattern discovery
+
+**Utilities:**
+- **image-specialist** - Image generation with Gemini AI
+
+**System Builder (Meta-Level):**
+- **domain-analyzer** - Domain analysis and agent recommendations
+- **agent-generator** - XML-optimized agent generation
+- **context-organizer** - Context file organization
+- **workflow-designer** - Workflow design
+- **command-creator** - Custom command creation
 
 ### ⚡ Commands
 - **/commit** - Smart git commits with conventional format
@@ -374,7 +395,7 @@ cp env.example .env
 ## Common Questions
 
 **Q: What's the main way to use this?**  
-A: Use `opencode --agent openagent` as your default. It handles both questions and tasks, coordinating with specialists as needed.
+A: Use `opencode --agent openagent` as your default for general tasks and questions. For complex multi-file coding work, use `opencode --agent opencoder`. Both coordinate with specialists as needed.
 
 **Q: Does this work on Windows?**  
 A: Yes! Use Git Bash (recommended) or WSL. See [Platform Compatibility Guide](docs/getting-started/platform-compatibility.md) for details.
@@ -404,8 +425,8 @@ A: Yes! Use the installer's list feature to see all components:
 ```
 Or cherry-pick individual files with curl:
 ```bash
-curl -o ~/.opencode/agent/codebase-agent.md \
-  https://raw.githubusercontent.com/darrenhinde/OpenAgents/main/.opencode/agent/codebase-agent.md
+curl -o ~/.opencode/agent/opencoder.md \
+  https://raw.githubusercontent.com/darrenhinde/OpenAgents/main/.opencode/agent/opencoder.md
 ```
 
 ---
@@ -427,7 +448,7 @@ Minimal starter kit - universal agent with core subagents.
 ### 💼 Developer (Recommended - 30 components)
 Complete software development environment with code generation, testing, review, and build tools.
 - Everything in Essential, plus:
-- **Agents**: codebase-agent
+- **Agents**: opencoder
 - **Subagents**: coder-agent, reviewer, tester, build-agent, codebase-pattern-analyst
 - **Commands**: commit, test, optimize, validate-repo
 - **Context**: All standards and workflow files (code, patterns, tests, docs, analysis, delegation, sessions, task-breakdown, review, context-guide)
@@ -454,10 +475,9 @@ Everything included - all agents, subagents, tools, and plugins.
 ### 🚀 Advanced (43 components)
 Full installation plus **System Builder** for creating custom AI architectures.
 - Everything in Full, plus:
-- **System Builder**: Interactive AI system generator
-  - system-builder agent
-  - domain-analyzer, agent-generator, context-organizer, workflow-designer, command-creator subagents
-  - build-context-system command
+- **Agents**: system-builder
+- **System Builder Subagents**: domain-analyzer, agent-generator, context-organizer, workflow-designer, command-creator
+- **Commands**: build-context-system
 - **Best for**: Building custom AI systems, contributors, learning the architecture
 
 ## Updating Components
@@ -493,8 +513,9 @@ Read [Agent System Blueprint](docs/features/agent-system-blueprint.md) to learn:
 ```
 .opencode/
 ├── agent/              # AI agents
-│   ├── codebase-agent.md
-│   ├── task-manager.md
+│   ├── openagent.md
+│   ├── opencoder.md
+│   ├── system-builder.md
 │   └── subagents/      # Specialized helpers
 ├── command/            # Slash commands
 │   ├── commit.md
@@ -529,17 +550,28 @@ This project is licensed under the MIT License.
 
 ## Recommended for New Users
 
-**Start with `openagent`** - it's your universal assistant that handles everything from simple questions to complex multi-step workflows. It follows a systematic 6-stage workflow (Analyze → Approve → Execute → Validate → Summarize → Confirm) and automatically delegates to specialized subagents when needed.
+**Start with `openagent`** - your universal coordinator for general tasks, questions, and workflows. It follows a systematic 6-stage workflow (Analyze → Approve → Execute → Validate → Summarize → Confirm) and automatically delegates to specialized subagents when needed.
 
 ```bash
 opencode --agent openagent
 > "How do I implement authentication in Next.js?"  # Questions
-> "Create a user authentication system"            # Tasks
+> "Create a user authentication system"            # Simple tasks
+> "Create a README for this project"               # Documentation
 ```
 
 OpenAgent will guide you through with a plan-first, approval-based approach. For questions, you get direct answers. For tasks, you see the plan before execution.
 
-**Learn more:** See the [OpenAgent Guide](docs/agents/openagent.md) for detailed workflow diagrams and tips.
+**For complex coding work**, use `opencoder`:
+
+```bash
+opencode --agent opencoder
+> "Refactor this codebase to use dependency injection"  # Multi-file refactoring
+> "Analyze the architecture and suggest improvements"   # Architecture analysis
+```
+
+**Learn more:** 
+- [OpenAgent Guide](docs/agents/openagent.md) - General tasks and coordination
+- [OpenCoder Guide](docs/agents/opencoder.md) - Specialized development work
 
 ---
 ## Support This Work

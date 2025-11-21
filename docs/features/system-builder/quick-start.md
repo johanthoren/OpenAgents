@@ -158,7 +158,7 @@ When you install **advanced** profile, you get:
 7. `build-context-system` (command) - Interactive interface
 
 **Plus all development tools:**
-- openagent, task-manager, codebase-agent
+- openagent, task-manager, opencoder
 - All core subagents (reviewer, tester, etc.)
 - All development commands
 - Tools and plugins

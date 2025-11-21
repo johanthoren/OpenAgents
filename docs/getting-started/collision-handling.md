@@ -130,7 +130,7 @@ Use when:
 
   Agents (2):
     .opencode/agent/task-manager.md
-    .opencode/agent/codebase-agent.md
+    .opencode/agent/opencoder.md
     
   Subagents (3):
     .opencode/agent/subagents/reviewer.md
