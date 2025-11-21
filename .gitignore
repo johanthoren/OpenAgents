@@ -197,3 +197,6 @@ temp/
 
 # Bun
 .bun
+
+# User-generated task files
+tasks/*
