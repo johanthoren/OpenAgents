@@ -21,7 +21,7 @@
 
 import { TestRunner } from './test-runner.js';
 import { loadTestCase, loadTestCases } from './test-case-loader.js';
-import glob from 'glob';
+import { globSync } from 'glob';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import type { TestResult } from './test-runner.js';
@@ -64,7 +64,35 @@ function printResults(results: TestResult[]): void {
     console.log(`   Events: ${result.events.length}`);
     console.log(`   Approvals: ${result.approvalsGiven}`);
     
+    // Show context loading details if available
     if (result.evaluation) {
+      const contextEval = result.evaluation.evaluatorResults.find(e => e.evaluator === 'context-loading');
+      if (contextEval && contextEval.metadata) {
+        const metadata = contextEval.metadata;
+        
+        // Check if this is a task session
+        if (metadata.isTaskSession) {
+          if (metadata.isBashOnly) {
+            console.log(`   Context Loading: ⊘ Bash-only task (not required)`);
+          } else if (metadata.contextCheck) {
+            const check = metadata.contextCheck;
+            if (check.contextFileLoaded) {
+              const timeDiff = check.executionTimestamp && check.loadTimestamp 
+                ? check.executionTimestamp - check.loadTimestamp 
+                : 0;
+              console.log(`   Context Loading:`);
+              console.log(`     ✓ Loaded: ${check.contextFilePath}`);
+              console.log(`     ✓ Timing: Context loaded ${timeDiff}ms before execution`);
+            } else {
+              console.log(`   Context Loading:`);
+              console.log(`     ✗ No context loaded before execution`);
+            }
+          }
+        } else {
+          console.log(`   Context Loading: ⊘ Conversational session (not required)`);
+        }
+      }
+      
       console.log(`   Violations: ${result.evaluation.totalViolations} (${result.evaluation.violationsBySeverity.error} errors, ${result.evaluation.violationsBySeverity.warning} warnings)`);
     }
     
@@ -105,7 +133,7 @@ async function main() {
   // Find test files
   const testDir = join(__dirname, '../../..', 'agents/openagent/tests');
   const pattern = args.pattern || '**/*.yaml';
-  const testFiles = glob.sync(pattern, { cwd: testDir, absolute: true });
+  const testFiles = globSync(pattern, { cwd: testDir, absolute: true });
   
   if (testFiles.length === 0) {
     console.error(`❌ No test files found matching pattern: ${pattern}`);

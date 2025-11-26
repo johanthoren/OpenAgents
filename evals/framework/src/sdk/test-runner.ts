@@ -11,12 +11,14 @@ import { ApprovalGateEvaluator } from '../evaluators/approval-gate-evaluator.js'
 import { ContextLoadingEvaluator } from '../evaluators/context-loading-evaluator.js';
 import { DelegationEvaluator } from '../evaluators/delegation-evaluator.js';
 import { ToolUsageEvaluator } from '../evaluators/tool-usage-evaluator.js';
+import { BehaviorEvaluator } from '../evaluators/behavior-evaluator.js';
 import type { TestCase } from './test-case-schema.js';
 import type { ApprovalStrategy } from './approval/approval-strategy.js';
 import type { ServerEvent } from './event-stream-handler.js';
 import type { AggregatedResult } from '../evaluators/evaluator-runner.js';
 import { homedir } from 'os';
 import { join } from 'path';
+import { findGitRoot } from '../config.js';
 
 export interface TestRunnerConfig {
   /**
@@ -36,6 +38,22 @@ export interface TestRunnerConfig {
 
   /**
    * Project path for evaluators
+   * 
+   * IMPORTANT: This should be the git root where the agent runs, not the test framework directory.
+   * 
+   * Default behavior:
+   * - Automatically finds git root by walking up from process.cwd()
+   * - This ensures sessions created by agents are found correctly
+   * 
+   * When to override:
+   * - Testing agents in non-git directories
+   * - Testing multiple agents with different project roots
+   * - Custom session storage locations
+   * 
+   * Example:
+   * - Git root: /Users/user/opencode-agents (sessions stored here)
+   * - Test CWD: /Users/user/opencode-agents/evals/framework (tests run here)
+   * - projectPath should be git root, not test CWD
    */
   projectPath?: string;
 
@@ -109,37 +127,34 @@ export class TestRunner {
   private evaluatorRunner: EvaluatorRunner | null = null;
 
   constructor(config: TestRunnerConfig = {}) {
+    // Find git root for agent detection
+    const gitRoot = findGitRoot(process.cwd());
+    
     this.config = {
       port: config.port || 0,
       debug: config.debug || false,
       defaultTimeout: config.defaultTimeout || 60000,
-      projectPath: config.projectPath || process.cwd(),
+      projectPath: config.projectPath || gitRoot,
       runEvaluators: config.runEvaluators ?? true,
-      defaultModel: config.defaultModel || 'opencode/grok-code-fast', // Free tier default
+      defaultModel: config.defaultModel || 'opencode/grok-code', // Free tier default (fixed model name)
     };
 
+    // Start server from git root with default agent
+    // Note: Individual tests can override the agent per-session
     this.server = new ServerManager({
       port: this.config.port,
       timeout: 10000,
+      cwd: gitRoot, // CRITICAL: Start server from git root to detect agent
+      debug: this.config.debug, // Pass debug flag to server
+      agent: 'openagent', // Default agent for all tests
     });
 
-    // Setup evaluators if enabled
-    if (this.config.runEvaluators) {
-      const sessionStoragePath = join(homedir(), '.local', 'share', 'opencode', 'storage');
-      const sessionReader = new SessionReader(this.config.projectPath, sessionStoragePath);
-      const timelineBuilder = new TimelineBuilder(sessionReader);
-
-      this.evaluatorRunner = new EvaluatorRunner({
-        sessionReader,
-        timelineBuilder,
-        evaluators: [
-          new ApprovalGateEvaluator(),
-          new ContextLoadingEvaluator(),
-          new DelegationEvaluator(),
-          new ToolUsageEvaluator(),
-        ],
-      });
+    if (this.config.debug) {
+      console.log(`[TestRunner] Git root: ${gitRoot}`);
+      console.log(`[TestRunner] Server will start from: ${gitRoot} with agent: openagent`);
     }
+
+    // Note: Evaluators will be setup in start() after SDK client is available
   }
 
   /**
@@ -152,6 +167,32 @@ export class TestRunner {
 
     this.client = new ClientManager({ baseUrl: url });
     this.eventHandler = new EventStreamHandler(url);
+
+    // Setup evaluators now that SDK client is available
+    if (this.config.runEvaluators && this.client) {
+      const sessionStoragePath = join(homedir(), '.local', 'share', 'opencode');
+      
+      // Create SessionReader with SDK client for reliable session retrieval
+      const sdkClient = this.client.getClient();
+      const sessionReader = new SessionReader(sdkClient, sessionStoragePath);
+      const timelineBuilder = new TimelineBuilder(sessionReader);
+
+      this.evaluatorRunner = new EvaluatorRunner({
+        sessionReader,
+        timelineBuilder,
+        sdkClient,
+        evaluators: [
+          new ApprovalGateEvaluator(),
+          new ContextLoadingEvaluator(),
+          new DelegationEvaluator(),
+          new ToolUsageEvaluator(),
+        ],
+      });
+
+      if (this.config.debug) {
+        this.log('[TestRunner] Evaluators initialized with SDK client');
+      }
+    }
   }
 
   /**
@@ -198,7 +239,7 @@ export class TestRunner {
       this.eventHandler.onAny((event) => {
         events.push(event);
         if (this.config.debug) {
-          this.log(`Event: ${event.type}`);
+          this.logEvent(event);
         }
       });
 
@@ -220,29 +261,72 @@ export class TestRunner {
       // Wait for event handler to connect
       await this.sleep(2000);
 
-      // Create session
+      // Create session (agent selection happens in sendPrompt, not here)
       this.log('Creating session...');
-      const session = await this.client.createSession(testCase.name);
+      const session = await this.client.createSession({
+        title: testCase.name,
+      });
       sessionId = session.id;
       this.log(`Session created: ${sessionId}`);
 
-      // Send prompt
-      this.log('Sending prompt...');
-      this.log(`Prompt: ${testCase.prompt.substring(0, 100)}${testCase.prompt.length > 100 ? '...' : ''}`);
-      
-      // Use test case model, or fall back to default model
+      // Send prompt(s) with agent selection
+      const timeout = testCase.timeout || this.config.defaultTimeout;
       const modelToUse = testCase.model || this.config.defaultModel;
+      const agentToUse = testCase.agent || 'openagent'; // Default to openagent
+      
+      this.log(`Agent: ${agentToUse}`);
       this.log(`Model: ${modelToUse}`);
       
-      const timeout = testCase.timeout || this.config.defaultTimeout;
-      const promptPromise = this.client.sendPrompt(sessionId, {
-        text: testCase.prompt,
-        model: modelToUse ? this.parseModel(modelToUse) : undefined,
-      });
+      // Check if multi-message test
+      if (testCase.prompts && testCase.prompts.length > 0) {
+        this.log(`Sending ${testCase.prompts.length} prompts (multi-turn)...`);
+        
+        for (let i = 0; i < testCase.prompts.length; i++) {
+          const msg = testCase.prompts[i];
+          this.log(`\nPrompt ${i + 1}/${testCase.prompts.length}:`);
+          this.log(`  Text: ${msg.text.substring(0, 100)}${msg.text.length > 100 ? '...' : ''}`);
+          if (msg.expectContext) {
+            this.log(`  Expects context: ${msg.contextFile || 'yes'}`);
+          }
+          
+          // Add delay if specified
+          if (msg.delayMs && i > 0) {
+            this.log(`  Waiting ${msg.delayMs}ms before sending...`);
+            await this.sleep(msg.delayMs);
+          }
+          
+          const promptPromise = this.client.sendPrompt(sessionId, {
+            text: msg.text,
+            agent: agentToUse, // ✅ Agent selection happens here!
+            model: modelToUse ? this.parseModel(modelToUse) : undefined,
+            directory: this.config.projectPath, // Pass working directory
+          });
+          
+          await this.withTimeout(promptPromise, timeout, `Prompt ${i + 1} execution timed out`);
+          this.log(`  Completed`);
+          
+          // Small delay between messages
+          if (i < testCase.prompts.length - 1) {
+            await this.sleep(1000);
+          }
+        }
+        
+        this.log('\nAll prompts completed');
+      } else {
+        // Single message test
+        this.log('Sending prompt...');
+        this.log(`Prompt: ${testCase.prompt!.substring(0, 100)}${testCase.prompt!.length > 100 ? '...' : ''}`);
+        
+        const promptPromise = this.client.sendPrompt(sessionId, {
+          text: testCase.prompt!,
+          agent: agentToUse, // ✅ Agent selection happens here!
+          model: modelToUse ? this.parseModel(modelToUse) : undefined,
+          directory: this.config.projectPath, // Pass working directory
+        });
 
-      // Wait for prompt with timeout
-      const result = await this.withTimeout(promptPromise, timeout, 'Prompt execution timed out');
-      this.log('Prompt completed');
+        await this.withTimeout(promptPromise, timeout, 'Prompt execution timed out');
+        this.log('Prompt completed');
+      }
 
       // Give time for final events to arrive
       await this.sleep(3000);
@@ -252,10 +336,46 @@ export class TestRunner {
 
       const duration = Date.now() - startTime;
 
+      // Validate agent is correct
+      if (testCase.agent) {
+        this.log(`Validating agent: ${testCase.agent}...`);
+        try {
+          const sessionInfo = await this.client.getSession(sessionId);
+          const messages = sessionInfo.messages;
+          
+          if (messages && messages.length > 0) {
+            const firstMessage = messages[0].info as any; // SDK types may not include agent field
+            const actualAgent = firstMessage.agent;
+            
+            if (actualAgent && actualAgent !== testCase.agent) {
+              errors.push(`Agent mismatch: expected '${testCase.agent}', got '${actualAgent}'`);
+              this.log(`  ❌ Agent mismatch: expected '${testCase.agent}', got '${actualAgent}'`);
+            } else if (actualAgent) {
+              this.log(`  ✅ Agent verified: ${actualAgent}`);
+            } else {
+              this.log(`  ⚠️  Agent not set in message`);
+            }
+          }
+        } catch (error) {
+          this.log(`  Warning: Could not validate agent: ${(error as Error).message}`);
+        }
+      }
+
       // Run evaluators if enabled
       let evaluation: AggregatedResult | undefined;
       if (this.config.runEvaluators && this.evaluatorRunner) {
         this.log('Running evaluators...');
+        
+        // Add behavior evaluator if test case has behavior expectations
+        if (testCase.behavior) {
+          this.log('Adding behavior evaluator for test expectations...');
+          const behaviorEvaluator = new BehaviorEvaluator(testCase.behavior);
+          this.evaluatorRunner.register(behaviorEvaluator);
+        }
+        
+        // No need to wait for disk writes - we're using SDK client directly!
+        // The SDK has the session data in memory and can return it immediately.
+        
         try {
           evaluation = await this.evaluatorRunner.runAll(sessionId);
           this.log(`Evaluators completed: ${evaluation.totalViolations} violations found`);
@@ -263,6 +383,11 @@ export class TestRunner {
           if (evaluation && evaluation.totalViolations > 0) {
             this.log(`  Errors: ${evaluation.violationsBySeverity.error}`);
             this.log(`  Warnings: ${evaluation.violationsBySeverity.warning}`);
+          }
+          
+          // Clean up behavior evaluator after use
+          if (testCase.behavior) {
+            this.evaluatorRunner.unregister('behavior');
           }
         } catch (error) {
           this.log(`Warning: Evaluators failed: ${(error as Error).message}`);
@@ -319,14 +444,16 @@ export class TestRunner {
       const result = await this.runTest(testCase);
       results.push(result);
 
-      // Clean up session after each test
-      if (this.client && result.sessionId) {
+      // Clean up session after each test (skip in debug mode to allow inspection)
+      if (this.client && result.sessionId && !this.config.debug) {
         try {
           await this.client.deleteSession(result.sessionId);
           this.log(`Cleaned up session: ${result.sessionId}\n`);
         } catch (error) {
           this.log(`Failed to clean up session: ${(error as Error).message}\n`);
         }
+      } else if (this.config.debug) {
+        this.log(`Debug mode: Keeping session ${result.sessionId} for inspection\n`);
       }
     }
 
@@ -363,6 +490,13 @@ export class TestRunner {
 
   /**
    * Evaluate if test result matches expected outcome
+   * 
+   * Evaluation priority:
+   * 1. Check for execution errors
+   * 2. Check behavior expectations (if defined)
+   * 3. Check expected violations (if defined)
+   * 4. Check deprecated expected format (if defined)
+   * 5. Default: pass if no errors
    */
   private evaluateResult(
     testCase: TestCase,
@@ -376,68 +510,57 @@ export class TestRunner {
     const expectedViolations = testCase.expectedViolations;
 
     // If there were execution errors and test expects to pass, it fails
-    if (errors.length > 0 && expected?.pass) {
+    if (errors.length > 0 && expected?.pass !== false) {
+      this.log(`Test failed due to execution errors: ${errors.join(', ')}`);
       return false;
     }
 
-    // Check minimum messages (deprecated)
-    if (expected?.minMessages !== undefined) {
-      const messageEvents = events.filter(e => e.type.includes('message'));
-      if (messageEvents.length < expected.minMessages) {
-        this.log(`Expected at least ${expected.minMessages} messages, got ${messageEvents.length}`);
-        return false;
-      }
-    }
-
-    // Check maximum messages (deprecated)
-    if (expected?.maxMessages !== undefined) {
-      const messageEvents = events.filter(e => e.type.includes('message'));
-      if (messageEvents.length > expected.maxMessages) {
-        this.log(`Expected at most ${expected.maxMessages} messages, got ${messageEvents.length}`);
-        return false;
-      }
-    }
-
-    // Check expected violations match actual violations (deprecated format)
-    if (expected?.violations && evaluation) {
-      const expectedViolationTypes = expected.violations.map(v => v.rule);
-      const actualViolationTypes = evaluation.allViolations.map(v => {
-        // Map violation types to rule names
-        if (v.type.includes('approval')) return 'approval-gate' as const;
-        if (v.type.includes('context')) return 'context-loading' as const;
-        if (v.type.includes('delegation')) return 'delegation' as const;
-        if (v.type.includes('tool')) return 'tool-usage' as const;
-        return 'unknown' as const;
-      });
-
-      // Check if expected violations are found
-      for (const expectedType of expectedViolationTypes) {
-        // Only check for implemented rules
-        if (['approval-gate', 'context-loading', 'delegation', 'tool-usage'].includes(expectedType)) {
-          if (!actualViolationTypes.includes(expectedType as any)) {
-            this.log(`Expected violation '${expectedType}' not found`);
-            return false;
-          }
+    // =========================================================================
+    // NEW: Check behavior evaluator results FIRST (most important)
+    // =========================================================================
+    if (behavior && evaluation) {
+      // Find the behavior evaluator result
+      const behaviorResult = evaluation.evaluatorResults.find(r => r.evaluator === 'behavior');
+      
+      if (behaviorResult) {
+        // Check if behavior evaluator passed
+        if (!behaviorResult.passed) {
+          this.log(`Behavior validation failed: ${behaviorResult.violations.length} violations`);
+          behaviorResult.violations.forEach(v => {
+            this.log(`  - [${v.severity}] ${v.type}: ${v.message}`);
+          });
+          return false;
+        }
+        
+        // Check for error-level violations from behavior evaluator
+        const behaviorErrors = behaviorResult.violations.filter(v => v.severity === 'error');
+        if (behaviorErrors.length > 0) {
+          this.log(`Behavior validation has ${behaviorErrors.length} error-level violations`);
+          return false;
         }
       }
-
-      // If test expects to fail, violations should exist
-      if (!expected?.pass && evaluation.totalViolations === 0) {
-        this.log('Expected violations but none found');
-        return false;
-      }
     }
 
-    // NEW: Check expected violations (new format)
+    // =========================================================================
+    // Check expected violations (new format)
+    // =========================================================================
     if (expectedViolations && evaluation) {
       for (const expectedViolation of expectedViolations) {
-        const actualViolations = evaluation.allViolations.filter(v => {
-          if (expectedViolation.rule === 'approval-gate') return v.type.includes('approval');
-          if (expectedViolation.rule === 'context-loading') return v.type.includes('context');
-          if (expectedViolation.rule === 'delegation') return v.type.includes('delegation');
-          if (expectedViolation.rule === 'tool-usage') return v.type.includes('tool');
-          return false;
-        });
+        // Map rule names to violation type patterns
+        const rulePatterns: Record<string, string[]> = {
+          'approval-gate': ['approval', 'missing-approval'],
+          'context-loading': ['context', 'no-context-loaded', 'missing-context'],
+          'delegation': ['delegation', 'missing-delegation'],
+          'tool-usage': ['tool', 'suboptimal-tool'],
+          'stop-on-failure': ['stop', 'failure'],
+          'confirm-cleanup': ['cleanup', 'confirm'],
+        };
+
+        const patterns = rulePatterns[expectedViolation.rule] || [expectedViolation.rule];
+        
+        const actualViolations = evaluation.allViolations.filter(v => 
+          patterns.some(pattern => v.type.toLowerCase().includes(pattern.toLowerCase()))
+        );
 
         if (expectedViolation.shouldViolate) {
           // Negative test: Should have violation
@@ -445,26 +568,88 @@ export class TestRunner {
             this.log(`Expected ${expectedViolation.rule} violation but none found`);
             return false;
           }
+          this.log(`✓ Expected violation '${expectedViolation.rule}' found`);
         } else {
           // Positive test: Should NOT have violation
           if (actualViolations.length > 0) {
-            this.log(`Unexpected ${expectedViolation.rule} violation found`);
+            this.log(`Unexpected ${expectedViolation.rule} violation found: ${actualViolations[0].message}`);
             return false;
           }
         }
       }
     }
 
-    // If test expects to pass, check no critical violations
-    if (expected?.pass && evaluation) {
-      if (evaluation.violationsBySeverity.error > 0) {
-        this.log(`Expected pass but found ${evaluation.violationsBySeverity.error} error-level violations`);
-        return false;
+    // =========================================================================
+    // Check deprecated expected format
+    // =========================================================================
+    if (expected) {
+      // Check minimum messages (deprecated)
+      if (expected.minMessages !== undefined) {
+        const messageEvents = events.filter(e => e.type.includes('message'));
+        if (messageEvents.length < expected.minMessages) {
+          this.log(`Expected at least ${expected.minMessages} messages, got ${messageEvents.length}`);
+          return false;
+        }
+      }
+
+      // Check maximum messages (deprecated)
+      if (expected.maxMessages !== undefined) {
+        const messageEvents = events.filter(e => e.type.includes('message'));
+        if (messageEvents.length > expected.maxMessages) {
+          this.log(`Expected at most ${expected.maxMessages} messages, got ${messageEvents.length}`);
+          return false;
+        }
+      }
+
+      // Check expected violations (deprecated format)
+      if (expected.violations && evaluation) {
+        const expectedViolationTypes = expected.violations.map(v => v.rule);
+        const actualViolationTypes = evaluation.allViolations.map(v => {
+          if (v.type.includes('approval')) return 'approval-gate' as const;
+          if (v.type.includes('context')) return 'context-loading' as const;
+          if (v.type.includes('delegation')) return 'delegation' as const;
+          if (v.type.includes('tool')) return 'tool-usage' as const;
+          return 'unknown' as const;
+        });
+
+        for (const expectedType of expectedViolationTypes) {
+          if (['approval-gate', 'context-loading', 'delegation', 'tool-usage'].includes(expectedType)) {
+            if (!actualViolationTypes.includes(expectedType as any)) {
+              this.log(`Expected violation '${expectedType}' not found`);
+              return false;
+            }
+          }
+        }
+
+        if (!expected.pass && evaluation.totalViolations === 0) {
+          this.log('Expected violations but none found');
+          return false;
+        }
+      }
+
+      // If test expects to pass, check no critical violations
+      if (expected.pass && evaluation) {
+        if (evaluation.violationsBySeverity.error > 0) {
+          this.log(`Expected pass but found ${evaluation.violationsBySeverity.error} error-level violations`);
+          return false;
+        }
+      }
+
+      // Use expected.pass if specified
+      if (expected.pass !== undefined) {
+        return expected.pass ? errors.length === 0 : true;
       }
     }
 
-    // Default: pass if no errors (or use expected.pass if specified)
-    return expected?.pass !== undefined ? (expected.pass ? errors.length === 0 : true) : errors.length === 0;
+    // =========================================================================
+    // Default: pass if no errors and no error-level violations
+    // =========================================================================
+    if (evaluation && evaluation.violationsBySeverity.error > 0) {
+      this.log(`Test failed: ${evaluation.violationsBySeverity.error} error-level violations`);
+      return false;
+    }
+
+    return errors.length === 0;
   }
 
   /**
@@ -503,6 +688,99 @@ export class TestRunner {
   private log(message: string): void {
     if (this.config.debug || message.includes('PASSED') || message.includes('FAILED')) {
       console.log(message);
+    }
+  }
+
+  /**
+   * Log event with meaningful details
+   * 
+   * Event properties structure varies by type:
+   * - session.created/updated: { id, title, ... }
+   * - message.updated: { id, sessionID, role, ... }
+   * - part.updated: { id, messageID, type, tool?, input?, output?, ... }
+   */
+  private logEvent(event: ServerEvent): void {
+    const props = event.properties || {};
+    
+    switch (event.type) {
+      case 'session.created':
+        console.log(`📋 Session created`);
+        break;
+        
+      case 'session.updated':
+        // Session updates are frequent but not very informative
+        // Skip logging unless there's something specific
+        break;
+        
+      case 'message.created':
+        console.log(`💬 New message (${props.role || 'assistant'})`);
+        break;
+        
+      case 'message.updated':
+        // Message updates happen frequently during streaming
+        // Only log role changes or completion
+        if (props.role === 'user') {
+          console.log(`👤 User message received`);
+        }
+        // Skip assistant message updates (too noisy)
+        break;
+        
+      case 'part.created':
+      case 'part.updated':
+        // Parts contain the actual content - tools, text, etc.
+        if (props.type === 'tool') {
+          const toolName = props.tool || 'unknown';
+          const status = props.state?.status || props.status || '';
+          
+          // Only log when tool starts or completes
+          if (status === 'running' || status === 'pending') {
+            console.log(`🔧 Tool: ${toolName} (starting)`);
+            
+            // Show tool input preview
+            const input = props.state?.input || props.input || {};
+            if (input.command) {
+              const cmd = input.command.substring(0, 70);
+              console.log(`   └─ ${cmd}${input.command.length > 70 ? '...' : ''}`);
+            } else if (input.filePath) {
+              console.log(`   └─ ${input.filePath}`);
+            } else if (input.pattern) {
+              console.log(`   └─ pattern: ${input.pattern}`);
+            }
+          } else if (status === 'completed') {
+            console.log(`✅ Tool: ${toolName} (completed)`);
+          } else if (status === 'error') {
+            console.log(`❌ Tool: ${toolName} (error)`);
+          }
+        } else if (props.type === 'text') {
+          // Text parts - show preview of assistant response
+          const text = props.text || '';
+          if (text.length > 0) {
+            const preview = text.substring(0, 100).replace(/\n/g, ' ');
+            console.log(`📝 ${preview}${text.length > 100 ? '...' : ''}`);
+          }
+        }
+        break;
+        
+      case 'permission.request':
+        console.log(`🔐 Permission requested: ${props.tool || 'unknown'}`);
+        break;
+        
+      case 'permission.response':
+        console.log(`🔐 Permission ${props.response === 'once' || props.approved ? 'granted' : 'denied'}`);
+        break;
+        
+      case 'tool.call':
+        console.log(`🔧 Tool call: ${props.tool || props.name || 'unknown'}`);
+        break;
+        
+      case 'tool.result':
+        const success = props.error ? '❌' : '✅';
+        console.log(`${success} Tool result: ${props.tool || 'unknown'}`);
+        break;
+        
+      default:
+        // Skip unknown events to reduce noise
+        break;
     }
   }
 }

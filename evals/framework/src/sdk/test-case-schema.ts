@@ -152,6 +152,33 @@ export const ExpectedResultsSchema = z.object({
 export type ExpectedResults = z.infer<typeof ExpectedResultsSchema>;
 
 /**
+ * Multi-message prompt (for multi-turn conversations)
+ */
+export const MultiMessageSchema = z.object({
+  /**
+   * The message text
+   */
+  text: z.string(),
+
+  /**
+   * Should context be loaded for this message?
+   */
+  expectContext: z.boolean().optional(),
+
+  /**
+   * Expected context file to be loaded
+   */
+  contextFile: z.string().optional(),
+
+  /**
+   * Delay before sending this message (ms)
+   */
+  delayMs: z.number().optional(),
+});
+
+export type MultiMessage = z.infer<typeof MultiMessageSchema>;
+
+/**
  * Test case schema
  */
 export const TestCaseSchema = z.object({
@@ -176,9 +203,14 @@ export const TestCaseSchema = z.object({
   category: z.enum(['developer', 'business', 'creative', 'edge-case']),
 
   /**
-   * The prompt to send to OpenAgent
+   * The prompt to send to OpenAgent (single message)
    */
-  prompt: z.string(),
+  prompt: z.string().optional(),
+
+  /**
+   * Multiple prompts for multi-turn conversations (NEW)
+   */
+  prompts: z.array(MultiMessageSchema).optional(),
 
   /**
    * Agent to use (defaults to 'openagent')
@@ -227,9 +259,16 @@ export const TestCaseSchema = z.object({
    */
   tags: z.array(z.string()).optional(),
 }).refine(
-  (data) => data.expected || (data.behavior && data.expectedViolations),
+  (data) => data.prompt || data.prompts,
   {
-    message: 'Must provide either "expected" (deprecated) or "behavior" + "expectedViolations" (preferred)',
+    message: 'Must provide either "prompt" (single message) or "prompts" (multi-turn)',
+  }
+).refine(
+  // Allow: expected (deprecated), behavior alone, or behavior + expectedViolations
+  // This is more flexible - behavior alone is valid for simple tests
+  (data) => data.expected || data.behavior || data.expectedViolations,
+  {
+    message: 'Must provide "expected" (deprecated), "behavior", "expectedViolations", or a combination',
   }
 );
 
