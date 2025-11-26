@@ -126,3 +126,105 @@ jobs:
             echo "### OpenCoder" >> $GITHUB_STEP_SUMMARY
             cat results/opencoder/latest.json | jq -r '"- Passed: \(.passed)\n- Failed: \(.failed)\n- Total: \(.total)"' >> $GITHUB_STEP_SUMMARY
           fi
+
+  auto-version-bump:
+    name: Auto Version Bump
+    runs-on: ubuntu-latest
+    needs: [test-openagent, test-opencoder]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Determine version bump type
+        id: bump-type
+        run: |
+          # Get the last commit message
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          
+          # Determine bump type from commit message
+          if echo "$COMMIT_MSG" | grep -qiE "^(feat|feature)\(.*\)!:|^BREAKING CHANGE:|^[a-z]+!:"; then
+            echo "type=major" >> $GITHUB_OUTPUT
+            echo "Detected BREAKING CHANGE - bumping major version"
+          elif echo "$COMMIT_MSG" | grep -qiE "^(feat|feature)(\(.*\))?:"; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+            echo "Detected feature - bumping minor version"
+          elif echo "$COMMIT_MSG" | grep -qiE "^(fix|bugfix)(\(.*\))?:"; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+            echo "Detected fix - bumping patch version"
+          elif echo "$COMMIT_MSG" | grep -qiE "^\[alpha\]"; then
+            echo "type=alpha" >> $GITHUB_OUTPUT
+            echo "Detected [alpha] tag - bumping alpha version"
+          elif echo "$COMMIT_MSG" | grep -qiE "^\[beta\]"; then
+            echo "type=beta" >> $GITHUB_OUTPUT
+            echo "Detected [beta] tag - bumping beta version"
+          elif echo "$COMMIT_MSG" | grep -qiE "^\[rc\]"; then
+            echo "type=rc" >> $GITHUB_OUTPUT
+            echo "Detected [rc] tag - bumping rc version"
+          else
+            echo "type=minor" >> $GITHUB_OUTPUT
+            echo "No specific type detected - defaulting to minor version bump"
+          fi
+      
+      - name: Bump version
+        run: |
+          BUMP_TYPE="${{ steps.bump-type.outputs.type }}"
+          
+          # Get current version
+          CURRENT_VERSION=$(cat VERSION)
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Bump version in package.json
+          npm run version:bump:$BUMP_TYPE
+          
+          # Get new version
+          NEW_VERSION=$(cat VERSION)
+          echo "New version: $NEW_VERSION"
+          
+          # Update CHANGELOG.md
+          DATE=$(date +%Y-%m-%d)
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          
+          # Create changelog entry
+          cat > /tmp/changelog_entry.md << EOF
+          ## [$NEW_VERSION] - $DATE
+          
+          ### Changes
+          - $COMMIT_MSG
+          
+          EOF
+          
+          # Prepend to CHANGELOG.md (after the header)
+          if [ -f CHANGELOG.md ]; then
+            # Insert after the first occurrence of "## ["
+            awk '/^## \[/ && !found {print; system("cat /tmp/changelog_entry.md"); found=1; next} 1' CHANGELOG.md > /tmp/changelog_new.md
+            mv /tmp/changelog_new.md CHANGELOG.md
+          fi
+      
+      - name: Commit version bump
+        run: |
+          NEW_VERSION=$(cat VERSION)
+          
+          git add VERSION package.json CHANGELOG.md
+          git commit -m "chore: bump version to v$NEW_VERSION [skip ci]"
+          git tag "v$NEW_VERSION"
+      
+      - name: Push changes
+        run: |
+          git push origin main --tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
