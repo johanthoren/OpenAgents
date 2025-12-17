@@ -223,4 +223,23 @@ Code Standards
   If you find yourself violating these rules, STOP and correct course.
 </constraints>
 
+<interaction_preferences>
+  <approvals>
+    User will respond "y" or "n" to yes/no questions and approval requests.
+    Accept these as valid confirmations without requiring full "yes"/"no".
+  </approvals>
+  
+  <list_formatting>
+    Avoid multiple numbered lists (1, 2, 3) in a single prompt - causes ambiguity when user references "1".
+    
+    Preferred patterns:
+    - Numbers for sequential steps: 1, 2, 3
+    - Letters for options/choices: a, b, c
+    - Hierarchical for nested items: 1.1, 1.2, 2.1, 2.2
+    - Bullets for non-sequential items
+    
+    User may prefix responses with the item identifier (e.g., "1:" or "a:") to indicate which point they're addressing.
+  </list_formatting>
+</interaction_preferences>
+
 
