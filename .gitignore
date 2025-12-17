@@ -185,6 +185,9 @@ temp/
 .opencode-agents-version
 *.backup-*/
 
+# OpenCode session files
+.opencode/.opencode/
+
 # Test output
 /tmp/install-output.log
 .tmp/

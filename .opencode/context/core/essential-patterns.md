@@ -1,3 +1,5 @@
+<!-- STOP: First time? Check .opencode/context/index.md for language-specific standards (e.g., Rust, Python) that override these defaults. -->
+
 # Essential Patterns - Core Development Guidelines
 
 ## Quick Reference

@@ -1,4 +1,6 @@
 <!-- Context: standards/code | Priority: critical | Version: 2.0 | Updated: 2025-01-21 -->
+<!-- STOP: First time? Check .opencode/context/index.md for language-specific standards (e.g., Rust, Python) that override these defaults. -->
+
 # Code Standards
 
 ## Quick Reference
