@@ -137,6 +137,10 @@ Analyze what needs to be done:
 ```
 Based on the issue, here's my implementation plan:
 
+Tests to write:
+- [test1]: [what it verifies]
+- [test2]: [what it verifies]
+
 Files to modify:
 - [file1]: [what changes]
 - [file2]: [what changes]
@@ -199,24 +203,94 @@ Created branch: [branch-name]
 Ready to implement.
 ```
 
-### Phase 6: Implementation
+### Phase 6: Write Tests First (TDD)
+
+**CRITICAL**: Follow Test-Driven Development. Write tests BEFORE implementation.
+
+**For bug fixes:**
+1. Write a test that reproduces the bug
+2. Run the test - it MUST fail (proving the bug exists)
+3. Document the failing test output
+4. Proceed to implementation only after the failing test is committed
+
+**For features:**
+1. Write tests that define the expected behavior/acceptance criteria
+2. Run the tests - they MUST fail (feature doesn't exist yet)
+3. Document the failing test output
+4. Proceed to implementation only after failing tests are committed
+
+**Test-first workflow:**
+```
+1. Identify test cases from issue requirements
+2. Write test file(s):
+   - Unit tests for individual functions/methods
+   - Integration tests for component interactions
+   - Edge cases and error conditions
+3. Run tests to confirm they fail:
+   ```bash
+   npm test || cargo test || go test ./... || pytest || bundle exec rspec
+   ```
+4. Commit failing tests:
+   ```
+   test: add failing tests for issue #[number]
+   
+   Tests define expected behavior for [feature/fix].
+   Currently failing - implementation to follow.
+   ```
+```
+
+**Present to user:**
+```
+Tests written for issue #[number]:
+
+- [test1]: [what it verifies] ❌ FAILING
+- [test2]: [what it verifies] ❌ FAILING
+- [test3]: [what it verifies] ❌ FAILING
+
+All tests failing as expected. Ready to implement.
+Proceed with implementation? (y/n)
+> [User input]
+```
+
+**Exception**: If the project has no test infrastructure, ask user:
+```
+No test framework detected. Options:
+1. Set up testing framework first (recommended)
+2. Proceed without tests (document why)
+3. Add tests after implementation (not TDD, but better than none)
+
+Choose (1/2/3):
+> [User input]
+```
+
+### Phase 7: Implementation
+
+**Follow the Red-Green-Refactor cycle:**
+
+1. **Red** - Tests are failing (from Phase 6)
+2. **Green** - Write minimal code to make tests pass
+3. **Refactor** - Clean up while keeping tests green
 
 **For each logical change:**
 
 1. **Implement the change**
    - Read relevant files
-   - Make necessary modifications
+   - Write minimal code to make failing tests pass
    - Follow project coding standards from @AGENTS.md
    - Keep functions small (5-15 lines)
    - Use clear, descriptive names
 
-2. **Verify the change**
-   - Run relevant tests
-   - Check for syntax errors
-   - Verify behavior matches requirements
+2. **Verify tests pass**
+   - Run the tests written in Phase 6
+   - ALL tests must pass before proceeding
+   - If tests fail, fix implementation (not the tests)
    - Follow verification workflow from AGENTS.md
 
-3. **Commit the change**
+3. **Refactor if needed**
+   - Clean up code while keeping tests green
+   - Run tests after each refactor step
+
+4. **Commit the change**
    - Stage relevant files
    - Use `/commit` command for well-formatted commit message
    - Or create commit manually with conventional format
@@ -226,14 +300,14 @@ Ready to implement.
 Step 1: [Description]
 - Modified: [files]
 - Changes: [what changed]
-- Verified: [how verified]
+- Tests: ✅ [X/Y passing]
 - Committed: [commit hash]
 
 Step 2: [Description]
 ...
 ```
 
-### Phase 7: Testing
+### Phase 8: Full Test Suite
 
 Run project tests:
 ```bash
@@ -263,7 +337,7 @@ If tests fail:
 - Verify behavior matches success criteria
 - Document observations
 
-### Phase 8: Completion
+### Phase 9: Completion
 
 **For direct commits to master:**
 ```bash
@@ -317,7 +391,7 @@ URL: [GitHub URL]
 The PR is ready for review.
 ```
 
-### Phase 9: Summary & Documentation
+### Phase 10: Summary & Documentation
 
 Update scratchpad with resolution:
 ```bash
@@ -375,10 +449,19 @@ Next steps:
 - Break complex issues into logical steps
 - Estimate time realistically
 - Identify dependencies early
+- Plan tests before planning implementation
+
+**Test-Driven Development**:
+- Write tests FIRST - before any implementation
+- For bugs: test must reproduce the bug before fixing
+- For features: tests define acceptance criteria
+- Commit failing tests before implementing
+- Follow Red-Green-Refactor cycle
+- Never skip tests to "save time"
 
 **Implementation**:
 - Make small, focused commits
-- Test continuously, not just at the end
+- Write minimal code to make tests pass
 - Follow project coding standards
 - Document non-obvious decisions
 
