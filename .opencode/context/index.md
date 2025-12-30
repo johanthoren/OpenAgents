@@ -24,6 +24,16 @@ build-release       → rust/build-release.md       [medium] rust build, docker,
 nagios              → rust/nagios.md              [medium] nagios plugin, monitoring, exit codes
 ```
 
+### Swift Standards (Load alongside core for Swift projects)
+Path: `.opencode/context/standards/swift/{file}`
+```
+swift-general       → swift/swift-general.md       [high] swift, error handling, types → deps: code, patterns
+functional-patterns → swift/functional-patterns.md [high] swift, map, filter, value types → deps: code
+concurrency         → swift/concurrency.md         [high] swift 6, async/await, actor, MainActor, Sendable → deps: code
+testing             → swift/testing.md             [high] swift tests, XCTest, async testing → deps: tests
+api-design          → swift/api-design.md          [high] swift API, protocols, documentation → deps: docs
+```
+
 ### Core Workflows
 Path: `.opencode/context/core/workflows/{file}`
 ```
@@ -66,6 +76,7 @@ Example: Core says "immutability always" but Rust standards say "mutation accept
 
 **Core Standards** - Language-agnostic defaults for code quality, testing, documentation
 **Rust Standards** - Rust-specific patterns (takes precedence over core for Rust projects)
+**Swift Standards** - Swift-specific patterns (takes precedence over core for Swift projects)
 **Core Workflows** - Process templates for delegation, review, task breakdown
 **Project Workflows** - Development lifecycle workflows
 **System** - Documentation and guides
