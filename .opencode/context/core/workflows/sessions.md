@@ -1,4 +1,4 @@
-<!-- Context: workflows/sessions | Priority: medium | Version: 2.0 | Updated: 2025-01-21 -->
+<!-- Context: workflows/sessions | Priority: medium | Version: 2.1 | Updated: 2025-12-17 -->
 # Session Management
 
 ## Quick Reference
@@ -10,6 +10,8 @@
 **Cleanup**: Always ask user confirmation before deleting
 
 **Safety**: NEVER delete outside current session, ONLY delete tracked files, ALWAYS confirm
+
+**Git Integration**: Capture git state on init, track commits during session
 
 ---
 
@@ -57,6 +59,21 @@
   "session_id": "20250118-143022-a4f2",
   "created_at": "2025-01-18T14:30:22Z",
   "last_activity": "2025-01-18T14:35:10Z",
+  "git_state": {
+    "branch": "feature/user-auth",
+    "started_at_commit": "a4f2c3d",
+    "started_at_message": "✨ feat: add user model",
+    "last_known_commit": "b5e3d4f",
+    "commits_this_session": [
+      "b5e3d4f - 🐛 fix: resolve password hashing issue",
+      "a4f2c3d - ✨ feat: add user model"
+    ],
+    "initial_status": {
+      "staged": [],
+      "modified": ["src/auth/login.ts"],
+      "untracked": ["tests/auth.test.ts"]
+    }
+  },
   "context_files": {
     "features/user-auth-context.md": {
       "created": "2025-01-18T14:30:22Z",
@@ -77,6 +94,56 @@
   }
 }
 ```
+
+## Git State Tracking
+
+**Purpose**: Use git as memory - track progress through commits
+
+### On Session Init
+
+Capture current git state:
+```bash
+# Get current state
+BRANCH=$(git branch --show-current)
+COMMIT=$(git rev-parse --short HEAD)
+MESSAGE=$(git log -1 --pretty=format:'%s')
+STAGED=$(git diff --cached --name-only)
+MODIFIED=$(git diff --name-only)
+UNTRACKED=$(git ls-files --others --exclude-standard)
+```
+
+Store in manifest `git_state` field.
+
+### On Each Commit
+
+Update manifest after commits made during session:
+```json
+{
+  "git_state": {
+    "last_known_commit": "c6f4e5g",
+    "commits_this_session": [
+      "c6f4e5g - ✅ test: add login validation tests",
+      "b5e3d4f - 🐛 fix: resolve password hashing issue",
+      "a4f2c3d - ✨ feat: add user model"
+    ]
+  }
+}
+```
+
+### On Re-grounding
+
+Compare current HEAD to `last_known_commit`:
+- **Same**: No external changes, safe to continue
+- **Different**: External changes detected, warn user
+- **Behind**: Someone else pushed, may need to pull
+- **Diverged**: Potential conflicts, needs attention
+
+### Git State Benefits
+
+1. **Progress tracking**: Commits show what was accomplished
+2. **Context recovery**: Commit messages explain decisions
+3. **External change detection**: Know if state changed outside session
+4. **Rollback capability**: Can identify where to revert if needed
 
 ## Activity Tracking
 

@@ -207,3 +207,4 @@ evals/results/*
 
 # User-generated task files
 tasks/
+.opencode/session.json

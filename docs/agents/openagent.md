@@ -1040,9 +1040,7 @@ The default categories are:
 
 Occasionally check `.tmp/sessions/` to see what context is being preserved:
 
-```bash
-ls -la .tmp/sessions/
-```
+- Use the list tool on `.tmp/sessions/` (report "No active session" if missing/empty).
 
 **Why**: Helps you understand what context OpenAgent is using and identify any issues.
 
@@ -1115,9 +1113,7 @@ Session: 20250118-143022-a4f2
 ```
 
 You can inspect the session folder to see what context was created:
-```bash
-cat .tmp/sessions/20250118-143022-a4f2/.manifest.json
-```
+- Use the read tool on `.tmp/sessions/20250118-143022-a4f2/.manifest.json`.
 
 ---
 

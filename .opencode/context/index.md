@@ -27,10 +27,11 @@ nagios              → rust/nagios.md              [medium] nagios plugin, moni
 ### Core Workflows
 Path: `.opencode/context/core/workflows/{file}`
 ```
-delegation  → workflows/delegation.md     [high]   delegate, task tool, subagent
-review      → workflows/review.md         [high]   review code, audit → deps: code, patterns
-breakdown   → workflows/task-breakdown.md [high]   break down, 4+ files → deps: delegation
-sessions    → workflows/sessions.md       [medium] session management, cleanup
+re-grounding → workflows/re-grounding.md   [high]   resume, continue, status, state → deps: sessions
+delegation   → workflows/delegation.md     [high]   delegate, task tool, subagent
+review       → workflows/review.md         [high]   review code, audit → deps: code, patterns
+breakdown    → workflows/task-breakdown.md [high]   break down, 4+ files → deps: delegation
+sessions     → workflows/sessions.md       [medium] session management, cleanup, git state
 ```
 
 ### Project Workflows
