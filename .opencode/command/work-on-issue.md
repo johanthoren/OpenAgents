@@ -4,501 +4,235 @@ description: Work on GitHub issues with guided workflow from selection to comple
 
 # Work on GitHub Issue
 
-You are an AI agent that helps work on GitHub issues using a structured workflow. Follow these instructions to guide the user from issue selection through implementation and completion.
+Orchestrate issue resolution through subagent delegation: planning → TDD → implementation → validation → completion.
 
-## Instructions for Agent
+## Phase 1: Select & Load Issue
 
-When the user runs this command, execute the following workflow:
+**Parse $ARGUMENTS for issue number** (formats: `42`, `#42`, `issue-42`).
 
-### Phase 1: Issue Selection
-
-**Check $ARGUMENTS for issue number:**
-
-Parse `$ARGUMENTS` to detect an issue number. Valid formats:
-- `42` - plain number
-- `#42` - with hash prefix
-- `issue-42` - with prefix
-- Any string containing digits that represent an issue ID
-
-If a valid issue number is found in `$ARGUMENTS`:
-- Extract the numeric ID
-- Skip to Phase 2
-
-**If no issue number provided:**
-
-Show recent open issues:
+If no issue number:
 ```bash
 gh issue list --state open --limit 10 --json number,title,labels,updatedAt
 ```
+Present list, prompt for selection or search query.
 
-Present to user (using issue IDs only, no separate list index):
-```
-Recent open issues:
-
-#42: Fix authentication bug [bug, authentication] (updated 2 days ago)
-#38: Add dark mode theme [enhancement, ui] (updated 3 days ago)
-#35: Improve error messages [enhancement] (updated 1 week ago)
-...
-
-Enter an issue ID (e.g., 42 or #42) to work on it, or:
-- A search query to find other issues
-- 'q' to quit
-
->
-```
-
-**Note**: Always use the GitHub issue ID to select an issue, whether it appears in the list above or not. Any valid issue ID from the repository can be used.
-
-**If user provides search query:**
-```bash
-gh issue list --search "[query]" --state open --limit 10 --json number,title,labels
-```
-
-Show results and repeat selection prompt.
-
-### Phase 2: Fetch Issue Context
-
-Get full issue details:
+**Fetch issue context:**
 ```bash
 gh issue view [number] --json number,title,body,state,labels,assignees,comments
 ```
 
-Check for existing scratchpad:
+Check for existing work:
 ```bash
 find scratchpads -type f -name "issue-[number]-*.md" 2>/dev/null
-```
-
-Check for related PRs:
-```bash
 gh pr list --search "[number]" --state all --json number,title,state
 ```
 
-Present context to user:
+Present summary:
 ```
 Issue #[number]: [Title]
-State: [open/closed]
-Labels: [labels]
-Assignees: [assignees or "unassigned"]
+Labels: [labels] | Assignees: [assignees or "unassigned"]
 
-[Issue body]
+[Issue body - truncated if long]
 
-Context:
-- Scratchpad: [path or "none found"]
-- Related PRs: [count] ([states])
-- Comments: [count]
+Context: Scratchpad [exists/none] | Related PRs: [count]
 ```
 
-### Phase 3: Understand & Plan
+## Phase 2: Plan
 
-Ask user for clarification:
+**Quick clarification:**
 ```
-Before we start, let's clarify:
-
-1. Is the issue description clear and complete? (y/n)
-   > [User input]
-
-2. Are there any constraints or requirements not mentioned? (or 'none')
-   > [User input]
-
-3. Should we work directly on master or create a branch? (master/branch)
-   > [User input]
+1. Branch or direct to master? (branch recommended for 4+ files)
+2. Any constraints not in the issue? (or 'none')
 ```
 
-**Branch naming convention:**
-- feature/issue-[number]-[brief-description]
-- fix/issue-[number]-[brief-description]
-- refactor/issue-[number]-[brief-description]
+**Assess complexity:**
 
-**Workflow decision:**
+| Criteria | Direct (master) | Branch + PR |
+|----------|-----------------|-------------|
+| Files affected | 1-3 | 4+ |
+| Estimated time | <30 min | >30 min |
+| Risk level | Low (docs, config) | Medium+ (logic, API) |
+| Review needed | No | Yes |
 
-Use **direct commit to master** when:
-- Single logical change
-- Low risk (docs, config, minor fixes)
-- Few files affected (1-3 files)
-- Quick implementation (<30 min)
-
-Use **branch + PR workflow** when:
-- Multiple logical changes needed
-- Complex implementation
-- Many files affected (4+ files)
-- Requires review or testing
-- Breaking changes
-
-**CRITICAL**: Never squash complex changes into a single commit to avoid branching. Each commit must be:
-- Independently understandable
-- Focused on a single logical change
-- Small enough to review easily
-
-If you're tempted to create a large commit, that's a signal you need multiple commits and therefore a branch/PR.
-
-### Phase 4: Create Implementation Plan
-
-Analyze what needs to be done:
+**If complex (4+ files OR multi-component):**
 ```
-Based on the issue, here's my implementation plan:
-
-Tests to write:
-- [test1]: [what it verifies]
-- [test2]: [what it verifies]
-
-Files to modify:
-- [file1]: [what changes]
-- [file2]: [what changes]
-
-Estimated commits: [number]
-Estimated time: [time]
-
-Does this approach make sense? (y/n/suggest changes)
-> [User input]
+DELEGATE to subagents/core/task-manager
+PASS:
+  - Issue body and acceptance criteria
+  - Constraints from user
+  - Branch decision
+RECEIVE:
+  - Subtask plan with sequences
+  - Files affected list
+  - Dependencies mapped
 ```
 
-If user suggests changes, incorporate feedback and re-present plan.
+**If simple:** Create brief plan directly:
+```
+Implementation Plan:
+- Tests: [what to test]
+- Files: [what to modify]
+- Commits: [estimated count]
 
-**Update scratchpad** with plan:
+Proceed? (y/n/suggest changes)
+```
 
-If scratchpad exists:
+**Create branch if needed:**
 ```bash
-cat >> scratchpads/issue-[number]-*.md << 'EOF'
-
-## Implementation Plan ($(date +%Y-%m-%d))
-
-### Approach
-[Detailed approach]
-
-### Files to Change
-- [file1]: [changes]
-- [file2]: [changes]
-
-### Steps
-1. [Step 1]
-2. [Step 2]
-...
-
-### Testing Strategy
-- [How to verify]
-
-EOF
+git checkout -b [fix|feature|refactor]/issue-[number]-[brief-description]
 ```
 
-If no scratchpad, offer to create one:
+## Phase 3: TDD Tests
+
+**Always delegate to tester subagent:**
 ```
-Would you like to create a scratchpad for this work? (y/n)
-```
-
-**IMPORTANT**: Follow scratchpad guidelines:
-- DO NOT include personal data, API keys, passwords, or sensitive information
-- Assume public visibility - these are committed to git history
-- Focus on technical analysis, design decisions, and rationale
-
-### Phase 5: Create Branch (if needed)
-
-If using branch workflow:
-```bash
-git checkout -b [branch-name]
+DELEGATE to subagents/code/tester
+PASS:
+  - Objective: [from issue body]
+  - Acceptance criteria: [extracted from issue]
+  - Files to test: [from plan]
+RECEIVE:
+  - Test files created
+  - All tests failing (verified)
+  - Test summary
 ```
 
-Confirm:
-```
-Created branch: [branch-name]
-Ready to implement.
-```
+**After delegation returns:**
+- Verify tests fail as expected
+- Commit failing tests:
+  ```
+  test: add failing tests for issue #[number]
+  
+  Tests define expected behavior. Currently failing - implementation to follow.
+  ```
 
-### Phase 6: Write Tests First (TDD)
-
-**CRITICAL**: Follow Test-Driven Development. Write tests BEFORE implementation.
-
-**For bug fixes:**
-1. Write a test that reproduces the bug
-2. Run the test - it MUST fail (proving the bug exists)
-3. Document the failing test output
-4. Proceed to implementation only after the failing test is committed
-
-**For features:**
-1. Write tests that define the expected behavior/acceptance criteria
-2. Run the tests - they MUST fail (feature doesn't exist yet)
-3. Document the failing test output
-4. Proceed to implementation only after failing tests are committed
-
-**Test-first workflow:**
-```
-1. Identify test cases from issue requirements
-2. Write test file(s):
-   - Unit tests for individual functions/methods
-   - Integration tests for component interactions
-   - Edge cases and error conditions
-3. Run tests to confirm they fail:
-   ```bash
-   npm test || cargo test || go test ./... || pytest || bundle exec rspec
-   ```
-4. Commit failing tests:
-   ```
-   test: add failing tests for issue #[number]
-   
-   Tests define expected behavior for [feature/fix].
-   Currently failing - implementation to follow.
-   ```
-```
-
-**Present to user:**
-```
-Tests written for issue #[number]:
-
-- [test1]: [what it verifies] ❌ FAILING
-- [test2]: [what it verifies] ❌ FAILING
-- [test3]: [what it verifies] ❌ FAILING
-
-All tests failing as expected. Ready to implement.
-Proceed with implementation? (y/n)
-> [User input]
-```
-
-**Exception**: If the project has no test infrastructure, ask user:
-```
-No test framework detected. Options:
-1. Set up testing framework first (recommended)
+**If no test framework:** Ask user to choose:
+1. Set up testing first (recommended)
 2. Proceed without tests (document why)
-3. Add tests after implementation (not TDD, but better than none)
+3. Add tests after implementation
 
-Choose (1/2/3):
-> [User input]
+## Phase 4: Implement
+
+**Delegate to coder-agent:**
+```
+DELEGATE to subagents/code/coder-agent
+PASS:
+  - Subtask plan (from Phase 2)
+  - Test files to make pass (from Phase 3)
+  - Project standards reference
+RECEIVE:
+  - Implementation complete
+  - Tests passing (verified)
+  - Files modified list
 ```
 
-### Phase 7: Implementation
+**After delegation returns:**
+- Verify all tests pass
+- Commit implementation:
+  ```
+  fix|feat: [description] for issue #[number]
+  
+  [What was implemented and why]
+  ```
 
-**Follow the Red-Green-Refactor cycle:**
+## Phase 5: Validate & Complete
 
-1. **Red** - Tests are failing (from Phase 6)
-2. **Green** - Write minimal code to make tests pass
-3. **Refactor** - Clean up while keeping tests green
-
-**For each logical change:**
-
-1. **Implement the change**
-   - Read relevant files
-   - Write minimal code to make failing tests pass
-   - Follow project coding standards from @AGENTS.md
-   - Keep functions small (5-15 lines)
-   - Use clear, descriptive names
-
-2. **Verify tests pass**
-   - Run the tests written in Phase 6
-   - ALL tests must pass before proceeding
-   - If tests fail, fix implementation (not the tests)
-   - Follow verification workflow from AGENTS.md
-
-3. **Refactor if needed**
-   - Clean up code while keeping tests green
-   - Run tests after each refactor step
-
-4. **Commit the change**
-   - Stage relevant files
-   - Use `/commit` command for well-formatted commit message
-   - Or create commit manually with conventional format
-
-**Example implementation flow:**
+### 5.1 Build Validation
 ```
-Step 1: [Description]
-- Modified: [files]
-- Changes: [what changed]
-- Tests: ✅ [X/Y passing]
-- Committed: [commit hash]
+DELEGATE to subagents/code/build-agent
+RECEIVE: Type check + build status
+```
+If FAIL: Stop, report errors, fix before proceeding.
 
-Step 2: [Description]
-...
+### 5.2 Security Audit (Mandatory)
+```
+DELEGATE to subagents/code/security-auditor
+PASS:
+  files_changed: [from git diff]
+  base_ref: [branch point or HEAD~n]
+RECEIVE:
+  recommendation: PASS | BLOCK | REVIEW
+  findings: [severity-rated issues]
+  dependency_issues: [if any]
 ```
 
-### Phase 8: Full Test Suite
+**Handle recommendation:**
 
-Run project tests:
-```bash
-# Detect test framework and run tests
-npm test || cargo test || go test ./... || pytest || bundle exec rspec
+| Result | Action |
+|--------|--------|
+| PASS | Continue to 5.3 |
+| REVIEW | Present findings, ask user to confirm proceed or fix |
+| BLOCK | Stop. Present critical issues. Options: fix and re-run, override with justification (logged), or abort |
+
+### 5.3 Code Review (Optional)
+```
+IF branch_workflow AND (user_requests OR security_findings.length > 0):
+  DELEGATE to subagents/code/reviewer
+  PASS:
+    - Files changed
+    - Security findings context (if any)
+  RECEIVE:
+    - Review notes
+    - Risk level
 ```
 
-Present results:
-```
-Test Results:
-- Total: [count]
-- Passed: [count]
-- Failed: [count]
+### 5.4 Push & Complete
 
-[If failures, show details]
-```
-
-If tests fail:
-- Analyze failures
-- Determine if related to changes
-- Fix issues and rerun tests
-- Don't proceed until tests pass
-
-**Manual verification** (if applicable):
-- Run the application
-- Test the specific feature/fix
-- Verify behavior matches success criteria
-- Document observations
-
-### Phase 9: Completion
-
-**For direct commits to master:**
+**For direct commits:**
 ```bash
 git push origin master
+gh issue close [number] --comment "Fixed in [commit hash]
+
+Changes: [summary]
+Verified: [how tested]"
 ```
 
-Close the issue:
-```bash
-gh issue close [number] --comment "Fixed in commit [hash]
-
-Changes:
-- [Summary of changes]
-
-Verified:
-- [How verified]"
-```
-
-**For branch + PR workflow:**
-
-Push branch:
+**For branch + PR:**
 ```bash
 git push -u origin [branch-name]
-```
-
-Create PR:
-```bash
 gh pr create \
-  --title "Fix #[number]: [brief description]" \
+  --title "Fix #[number]: [description]" \
   --body "Fixes #[number]
 
 ## Changes
-- [Change 1]
-- [Change 2]
+- [change list]
 
 ## Testing
-- [How tested]
-- [Test results]
+- [test results]
 
-## Verification
-- [How verified]" \
-  --label "[appropriate labels]"
+## Security
+- [audit result: PASS or findings addressed]"
 ```
 
-Present PR details:
+Present completion:
 ```
-✅ Pull request created!
+Issue #[number] completed!
 
-PR #[number]: [Title]
-URL: [GitHub URL]
-
-The PR is ready for review.
-```
-
-### Phase 10: Summary & Documentation
-
-Update scratchpad with resolution:
-```bash
-cat >> scratchpads/issue-[number]-*.md << 'EOF'
-
-## Resolution ($(date +%Y-%m-%d))
-
-### Implementation Summary
-[What was implemented]
-
-### Commits
-- [commit 1]: [description]
-- [commit 2]: [description]
-
-### Testing
-[Test results and verification]
-
-### PR
-[PR link if applicable]
-
-### Learnings
-[Any insights or decisions made]
-
-EOF
-```
-
-Present comprehensive summary:
-```
-✅ Issue #[number] completed!
-
-Workflow: [Direct commit | Branch + PR]
-Branch: [branch name if applicable]
-Commits: [count]
-Files changed: [count]
-Tests: [passed/failed]
+Workflow: [Direct | Branch + PR]
+Commits: [count] | Files: [count]
+Tests: [pass count] | Security: [PASS/findings addressed]
 PR: [URL if applicable]
-
-Changes:
-- [Summary of what was done]
-- [Key decisions made]
-
-Verification:
-- [What was tested]
-- [Results observed]
-
-Next steps:
-- [If PR: Wait for review and merge]
-- [If direct: Issue is closed and complete]
 ```
-
-## Best Practices
-
-**Planning**:
-- Understand the issue fully before starting
-- Break complex issues into logical steps
-- Estimate time realistically
-- Identify dependencies early
-- Plan tests before planning implementation
-
-**Test-Driven Development**:
-- Write tests FIRST - before any implementation
-- For bugs: test must reproduce the bug before fixing
-- For features: tests define acceptance criteria
-- Commit failing tests before implementing
-- Follow Red-Green-Refactor cycle
-- Never skip tests to "save time"
-
-**Implementation**:
-- Make small, focused commits
-- Write minimal code to make tests pass
-- Follow project coding standards
-- Document non-obvious decisions
-
-**Verification**:
-- Run tests after each change
-- Manually verify behavior
-- Check edge cases
-- Don't declare success without verification
-
-**Communication**:
-- Update issue with progress
-- Document decisions in scratchpad
-- Write clear commit messages
-- Provide thorough PR descriptions
 
 ## Error Handling
 
-- If `gh` not installed: "GitHub CLI required. Install from: https://cli.github.com"
-- If not authenticated: "Run 'gh auth login' to authenticate with GitHub"
-- If issue not found: "Issue #[number] not found. Check the issue number."
-- If tests fail: Don't proceed, help user fix failures
-- If branch already exists: Ask user if they want to use existing or create new
+| Error | Response |
+|-------|----------|
+| `gh` not installed | "Install GitHub CLI: https://cli.github.com" |
+| Not authenticated | "Run `gh auth login`" |
+| Issue not found | "Issue #[n] not found. Check number." |
+| Tests fail | Stop, help fix. Don't proceed until green. |
+| Build fails | Stop, report errors. Don't proceed until fixed. |
+| Security BLOCK | Stop, present findings. Require fix or explicit override. |
+| Branch exists | Ask: use existing or create new? |
 
-## Integration with OpenAgents
+## Subagent Delegation Summary
 
-This command integrates with:
-- `/commit` - Well-formatted commits with emoji
-- `/create-issue` - Issue creation workflow
-- Task breakdown workflows - Complex issue handling
-- Code review processes - Quality gates
-- Testing workflows - Verification
-
-## Notes
-
-- Always verify changes before committing
-- Follow the verification workflow from AGENTS.md
-- No "should work" - actually run and verify
-- Keep commits atomic and focused
-- Update documentation as you go
-- Communicate progress clearly
+| Phase | Subagent | Trigger | Required |
+|-------|----------|---------|----------|
+| 2 | task-manager | 4+ files OR complex | Conditional |
+| 3 | tester | Always | Yes |
+| 4 | coder-agent | Always | Yes |
+| 5.1 | build-agent | Always | Yes |
+| 5.2 | security-auditor | Always | Yes |
+| 5.3 | reviewer | Branch + user request | Optional |
