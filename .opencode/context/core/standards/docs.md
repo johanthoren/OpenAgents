@@ -148,3 +148,9 @@ Create a new user
 ✅ Update when code changes
 
 **Golden Rule**: If users ask the same question twice, document it.
+
+## Typography
+
+- Use regular hyphens (`-`) not em-dashes (`—`) or en-dashes (`–`)
+- Avoid smart quotes; use straight quotes (`"` and `'`)
+- Avoid emojis in CLI output (use plain text indicators like `[OK]`, `[ERROR]`, `*`)
