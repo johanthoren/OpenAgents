@@ -61,7 +61,7 @@ If user says `n`, exit. If `view #`, show that issue and re-prompt.
 ### Step 4: Gather Details
 
 ```
-Issue type? (bug/feature/refactor/docs) [feature]
+Issue type? (bug/enhancement/refactor/docs) [enhancement]
 >
 
 Brief title (imperative mood, e.g., "Add user authentication"):

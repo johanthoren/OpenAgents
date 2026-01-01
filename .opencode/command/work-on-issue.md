@@ -113,6 +113,8 @@ RECEIVE:
 
 ## Phase 4: Implement
 
+### 4.1 Code Implementation
+
 **Delegate to coder-agent:**
 ```
 DELEGATE to subagents/code/coder-agent
@@ -128,7 +130,27 @@ RECEIVE:
 
 **After delegation returns:**
 - Verify all tests pass
-- Commit implementation:
+
+### 4.2 Pre-Commit Review (Conditional)
+
+```
+IF files_changed >= 4 OR user_requests_review:
+  DELEGATE to subagents/code/reviewer
+  PASS:
+    - Files changed (from git diff --name-only)
+    - Implementation context
+  RECEIVE:
+    - Review notes
+    - Risk level
+    - Suggested improvements (do not auto-apply)
+
+  Present review notes to user.
+  IF risk_level == "HIGH": Require explicit approval to proceed.
+```
+
+### 4.3 Commit Implementation
+
+**Commit implementation:**
   ```
   fix|feat: [description] for issue #[number]
   
@@ -164,19 +186,7 @@ RECEIVE:
 | REVIEW | Present findings, ask user to confirm proceed or fix |
 | BLOCK | Stop. Present critical issues. Options: fix and re-run, override with justification (logged), or abort |
 
-### 5.3 Code Review (Optional)
-```
-IF branch_workflow AND (user_requests OR security_findings.length > 0):
-  DELEGATE to subagents/code/reviewer
-  PASS:
-    - Files changed
-    - Security findings context (if any)
-  RECEIVE:
-    - Review notes
-    - Risk level
-```
-
-### 5.4 Push & Complete
+### 5.3 Push & Complete
 
 **For direct commits:**
 ```bash
@@ -232,7 +242,7 @@ PR: [URL if applicable]
 |-------|----------|---------|----------|
 | 2 | task-manager | 4+ files OR complex | Conditional |
 | 3 | tester | Always | Yes |
-| 4 | coder-agent | Always | Yes |
+| 4.1 | coder-agent | Always | Yes |
+| 4.2 | reviewer | 4+ files OR user request | Conditional |
 | 5.1 | build-agent | Always | Yes |
 | 5.2 | security-auditor | Always | Yes |
-| 5.3 | reviewer | Branch + user request | Optional |
