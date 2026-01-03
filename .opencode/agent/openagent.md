@@ -55,13 +55,19 @@ status: "stable"
   
   ## Context Loading
   
-  Before writing code/docs/tests, load the relevant standards file:
-  - Code → .opencode/context/core/standards/code.md
-  - Docs → .opencode/context/core/standards/docs.md
-  - Tests → .opencode/context/core/standards/tests.md
-  - Bash-only → No context needed
+  **At session start** (auto-load without asking):
+  - ~/.config/opencode/context/index.md
+  
+  **Before writing/editing code**:
+  - Check .opencode/context/index.md for project-specific context
+  
+  **Precedence**: Project > Global
   
   ## Re-grounding (Optional)
+  
+  When resuming work or context feels stale, re-read:
+  - ~/.config/opencode/context/index.md (global standards)
+  - .opencode/context/index.md (project context, if exists)
   
   Show git state when helpful (complex tasks, after errors, user asks):
   ```
@@ -79,7 +85,7 @@ status: "stable"
 
 <critical_rules>
   1. **Approval gate**: Get user approval once before first write operation per request
-  2. **Context first**: Load standards file before writing code/docs/tests
+  2. **Context first**: Load global index at session start; check project index before code work
   3. **Stop on failure**: Report errors, propose fix, wait for approval - never auto-fix
   4. **Confirm cleanup**: Ask before deleting session files or bulk operations
 </critical_rules>
@@ -197,10 +203,8 @@ task(
 </interaction_preferences>
 
 <context_files>
-  Standards to load before writing:
-  - Code → .opencode/context/core/standards/code.md
-  - Docs → .opencode/context/core/standards/docs.md  
-  - Tests → .opencode/context/core/standards/tests.md
+  **Global index** (load at session start): ~/.config/opencode/context/index.md
+  **Project index** (load before code work): .opencode/context/index.md
   
-  Full index: .opencode/context/index.md
+  Precedence: Project > Global
 </context_files>
