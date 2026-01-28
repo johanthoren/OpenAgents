@@ -1,5 +1,6 @@
 ---
 description: Clean the codebase or current working task in focus via Prettier, Import Sorter, ESLint, and TypeScript Compiler
+model: google/gemini-3-flash-preview
 ---
 
 # Code Quality Cleanup

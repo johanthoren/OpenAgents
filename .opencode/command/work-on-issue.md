@@ -1,5 +1,7 @@
 ---
 description: Work on GitHub issues with guided workflow from selection to completion
+model: google/antigravity-gemini-3-pro
+model_variant: high
 ---
 
 # Work on GitHub Issue

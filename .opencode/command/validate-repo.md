@@ -1,3 +1,9 @@
+---
+description: Comprehensive validation command that checks the entire OpenAgents repository for consistency between CLI, documentation, registry, and components.
+model: google/antigravity-gemini-3-pro
+model_variant: high
+---
+
 # Validate Repository
 
 Comprehensive validation command that checks the entire OpenAgents repository for consistency between CLI, documentation, registry, and components.

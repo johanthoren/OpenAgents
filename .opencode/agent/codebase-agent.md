@@ -1,5 +1,7 @@
 ---
 description: "Multi-language implementation agent for modular and functional development"
+model: google/antigravity-gemini-3-flash
+model_variant: high
 mode: primary
 temperature: 0.1
 tools:

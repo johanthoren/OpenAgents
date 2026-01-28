@@ -1,5 +1,7 @@
 ---
 description: Analyze and understand the complete project context and structure
+model: google/antigravity-gemini-3-pro
+model_variant: high
 ---
 
 # Project Context Analysis

@@ -1,5 +1,7 @@
 ---
 description: "Main orchestrator for building complete context-aware AI systems from user requirements"
+model: google/antigravity-gemini-3-pro
+model_variant: high
 mode: primary
 temperature: 0.2
 tools:

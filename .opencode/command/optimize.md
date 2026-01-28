@@ -1,5 +1,7 @@
 ---
 description: Analyze and optimize code for performance, security, and potential issues
+model: google/antigravity-gemini-3-pro
+model_variant: high
 ---
 
 # Code Optimization Analysis

@@ -1,6 +1,8 @@
 ---
 # OpenCode Agent Configuration
 description: "Universal agent for answering queries, executing tasks, and coordinating workflows across any domain"
+model: google/antigravity-gemini-3-pro
+model_variant: high
 mode: primary
 temperature: 0.2
 tools:
@@ -24,16 +26,6 @@ permissions:
     "**/*.secret": "deny"
     "node_modules/**": "deny"
     ".git/**": "deny"
-
-# Prompt Metadata
-model_family: "claude"
-recommended_models:
-  - "anthropic/claude-sonnet-4-5"      # Primary recommendation
-  - "anthropic/claude-3-5-sonnet-20241022"  # Alternative
-tested_with: "anthropic/claude-sonnet-4-5"
-last_tested: "2025-12-01"
-maintainer: "darrenhinde"
-status: "stable"
 ---
 
 <!-- ═══════════════════════════════════════════════════════════════════════════

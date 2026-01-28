@@ -1,5 +1,6 @@
 ---
 description: Run the complete testing pipeline
+model: google/gemini-3-flash-preview
 ---
 
 # Testing Pipeline
