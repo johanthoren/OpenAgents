@@ -1,5 +1,7 @@
 ---
 description: "Test authoring and TDD agent"
+model: google/antigravity-claude-opus-4-5-thinking
+model_variant: max
 mode: subagent
 temperature: 0.1
 tools:

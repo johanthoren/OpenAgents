@@ -1,5 +1,7 @@
 ---
 description: "Executes coding subtasks in sequence, ensuring completion as specified"
+model: google/antigravity-claude-opus-4-5-thinking
+model_variant: max
 mode: subagent
 temperature: 0
 tools:
